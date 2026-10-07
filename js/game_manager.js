@@ -9,15 +9,17 @@ function GameManager(size, InputManager, Actuator, StorageManager) {
   this.inputManager.on("move", this.move.bind(this));
   this.inputManager.on("restart", this.restart.bind(this));
   this.inputManager.on("keepPlaying", this.keepPlaying.bind(this));
+  this.inputManager.on("enableUndo", this.enableUndo.bind(this));
+  this.inputManager.on("undo", this.undo.bind(this));
 
   this.setup();
 }
 
 // Restart the game
-GameManager.prototype.restart = function () {
+GameManager.prototype.restart = function (largeTiles) {
   this.storageManager.clearGameState();
   this.actuator.continueGame(); // Clear the game won/lost message
-  this.setup();
+  this.setup(largeTiles);
 };
 
 // Keep playing after winning (allows going over 2048)
@@ -31,9 +33,32 @@ GameManager.prototype.isGameTerminated = function () {
   return this.over || (this.won && !this.keepPlaying);
 };
 
+GameManager.prototype.enableUndo = function () {
+  this.undoEnabled = true;
+  this.actuate();
+};
+
+GameManager.prototype.undo = function () {
+  if (!this.undoEnabled || !this.history.length) return;
+
+  var previous = this.history.pop();
+  this.grid = new Grid(previous.grid.size, previous.grid.cells);
+  this.score = previous.score;
+  this.over = previous.over;
+  this.won = previous.won;
+  this.keepPlaying = previous.keepPlaying;
+  this.undoCount++;
+  this.actuator.continueGame();
+  this.actuate();
+};
+
 // Set up the game
-GameManager.prototype.setup = function () {
+GameManager.prototype.setup = function (largeTiles) {
   var previousState = this.storageManager.getGameState();
+  this.history = previousState ? (previousState.history || []) : [];
+  this.undoCount = previousState ? (previousState.undoCount || 0) : 0;
+  this.undoEnabled = previousState ? !!previousState.undoEnabled :
+                                    !!this.undoEnabled;
 
   // Reload the game from a previous game if present
   if (previousState) {
@@ -51,7 +76,13 @@ GameManager.prototype.setup = function () {
     this.keepPlaying = false;
 
     // Add the initial tiles
-    this.addStartTiles();
+    if (largeTiles) {
+      this.grid.insertTile(new Tile({ x: 0, y: 0 }, 4096));
+      this.grid.insertTile(new Tile({ x: 0, y: 1 }, 2048));
+      this.grid.insertTile(new Tile(this.grid.randomAvailableCell(), 2));
+    } else {
+      this.addStartTiles();
+    }
   }
 
   // Update the actuator
@@ -86,8 +117,8 @@ GameManager.prototype.actuate = function () {
     this.storageManager.setBestScore(this.score);
   }
 
-  // Clear the state when the game is over (game over only, not win)
-  if (this.over) {
+  // Keep finished games when undo is enabled so they can be recovered.
+  if (this.over && !this.undoEnabled) {
     this.storageManager.clearGameState();
   } else {
     this.storageManager.setGameState(this.serialize());
@@ -98,6 +129,9 @@ GameManager.prototype.actuate = function () {
     over:       this.over,
     won:        this.won,
     bestScore:  this.storageManager.getBestScore(),
+    undoEnabled: this.undoEnabled,
+    undoCount: this.undoCount,
+    canUndo: this.history.length > 0,
     terminated: this.isGameTerminated()
   });
 
@@ -105,6 +139,15 @@ GameManager.prototype.actuate = function () {
 
 // Represent the current game as an object
 GameManager.prototype.serialize = function () {
+  var state = this.serializeBoard();
+  state.history = this.history;
+  state.undoCount = this.undoCount;
+  state.undoEnabled = this.undoEnabled;
+  return state;
+};
+
+// History entries contain only board state, never nested undo history.
+GameManager.prototype.serializeBoard = function () {
   return {
     grid:        this.grid.serialize(),
     score:       this.score,
@@ -137,6 +180,7 @@ GameManager.prototype.move = function (direction) {
   var self = this;
 
   if (this.isGameTerminated()) return; // Don't do anything if the game's over
+  var previous = this.serializeBoard();
 
   var cell, tile;
 
@@ -185,6 +229,7 @@ GameManager.prototype.move = function (direction) {
   });
 
   if (moved) {
+    this.history.push(previous);
     this.addRandomTile();
 
     if (!this.movesAvailable()) {

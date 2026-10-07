@@ -3,6 +3,9 @@ function HTMLActuator() {
   this.scoreContainer   = document.querySelector(".score-container");
   this.bestContainer    = document.querySelector(".best-container");
   this.messageContainer = document.querySelector(".game-message");
+  this.undoControls     = document.querySelector(".undo-controls");
+  this.undoButton       = document.querySelector(".undo-button");
+  this.undoCounter      = document.querySelector(".undo-count");
 
   this.score = 0;
 }
@@ -23,6 +26,9 @@ HTMLActuator.prototype.actuate = function (grid, metadata) {
 
     self.updateScore(metadata.score);
     self.updateBestScore(metadata.bestScore);
+    self.undoControls.hidden = !metadata.undoEnabled;
+    self.undoButton.disabled = !metadata.canUndo;
+    self.undoCounter.textContent = metadata.undoCount;
 
     if (metadata.terminated) {
       if (metadata.over) {

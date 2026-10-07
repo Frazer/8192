@@ -92,6 +92,41 @@ h1.title {
 .score-container:after {
   content: "Score"; }
 
+.score-container {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; }
+
+.undo-controls {
+  clear: both;
+  padding-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  font-size: 16px; }
+
+.undo-controls[hidden] {
+  display: none; }
+
+.undo-button {
+  display: inline-block;
+  background: #8f7a66;
+  border-radius: 3px;
+  padding: 0 20px;
+  text-decoration: none;
+  color: #f9f6f2;
+  height: 40px;
+  line-height: 42px;
+  border: 0;
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer; }
+  .undo-button:disabled {
+    opacity: 0.5;
+    cursor: default; }
+
 .best-container:after {
   content: "Best"; }
 
@@ -534,6 +569,9 @@ hr {
   margin-bottom: 0; }
 
 .restart-button {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
   display: inline-block;
   background: #8f7a66;
   border-radius: 3px;

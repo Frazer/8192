@@ -70,7 +70,13 @@ KeyboardInputManager.prototype.listen = function () {
 
   // Respond to button presses
   this.bindButtonPress(".retry-button", this.restart);
-  this.bindButtonPress(".restart-button", this.restart);
+  this.bindNewGameButton();
+  this.bindHoldButton(".score-container", function () {
+    self.emit("enableUndo");
+  });
+  document.querySelector(".undo-button").addEventListener("click", function () {
+    self.emit("undo");
+  });
   this.bindButtonPress(".keep-playing-button", this.keepPlaying);
 
   // Respond to swipe events
@@ -141,4 +147,76 @@ KeyboardInputManager.prototype.bindButtonPress = function (selector, fn) {
   var button = document.querySelector(selector);
   button.addEventListener("click", fn.bind(this));
   button.addEventListener(this.eventTouchend, fn.bind(this));
+};
+
+KeyboardInputManager.prototype.bindNewGameButton = function () {
+  var self = this;
+  this.bindHoldButton(".restart-button", function () {
+    self.emit("restart", true);
+  }, function () {
+    self.emit("restart");
+  });
+};
+
+KeyboardInputManager.prototype.bindHoldButton = function (selector, onHold,
+                                                        onPress) {
+  var button = document.querySelector(selector);
+  var timer = null;
+  var held = false;
+  var pointerId = null;
+
+  function cancel() {
+    window.clearTimeout(timer);
+    timer = null;
+    pointerId = null;
+  }
+
+  function start(event) {
+    if (timer !== null || (event.button !== undefined && event.button !== 0) ||
+        (event.touches && event.touches.length !== 1) ||
+        event.isPrimary === false) return;
+
+    held = false;
+    pointerId = event.pointerId;
+    // Prevent legacy touch events from generating a second mouse click.
+    if (event.type === "touchstart") event.preventDefault();
+    timer = window.setTimeout(function () {
+      held = true;
+      onHold();
+    }, 2000);
+  }
+
+  function end(event) {
+    if (pointerId !== null && event.pointerId !== pointerId) return;
+    var active = timer !== null;
+    cancel();
+    if (event.type === "touchend") {
+      event.preventDefault();
+      if (active && !held && onPress) onPress();
+    }
+  }
+
+  button.addEventListener("click", function (event) {
+    event.preventDefault();
+    if (!held && onPress) onPress();
+  });
+  button.addEventListener("contextmenu", function (event) {
+    event.preventDefault();
+  });
+
+  if (window.PointerEvent) {
+    button.addEventListener("pointerdown", start);
+    document.addEventListener("pointerup", end);
+    button.addEventListener("pointerleave", cancel);
+    document.addEventListener("pointercancel", cancel);
+  } else {
+    button.addEventListener("mousedown", start);
+    document.addEventListener("mouseup", end);
+    button.addEventListener("mouseleave", cancel);
+    button.addEventListener("touchstart", start, { passive: false });
+    button.addEventListener("touchend", end);
+    button.addEventListener("touchmove", cancel);
+    button.addEventListener("touchcancel", cancel);
+  }
+  window.addEventListener("blur", cancel);
 };
