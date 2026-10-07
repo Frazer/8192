@@ -155,19 +155,24 @@ KeyboardInputManager.prototype.bindNewGameButton = function () {
     self.emit("restart", true);
   }, function () {
     self.emit("restart");
+  }, function () {
+    self.emit("restart", 8192);
   });
 };
 
 KeyboardInputManager.prototype.bindHoldButton = function (selector, onHold,
-                                                        onPress) {
+                                                        onPress, onLongHold) {
   var button = document.querySelector(selector);
   var timer = null;
+  var longTimer = null;
   var held = false;
   var pointerId = null;
 
   function cancel() {
     window.clearTimeout(timer);
+    window.clearTimeout(longTimer);
     timer = null;
+    longTimer = null;
     pointerId = null;
   }
 
@@ -184,6 +189,12 @@ KeyboardInputManager.prototype.bindHoldButton = function (selector, onHold,
       held = true;
       onHold();
     }, 2000);
+    if (onLongHold) {
+      longTimer = window.setTimeout(function () {
+        held = true;
+        onLongHold();
+      }, 10000);
+    }
   }
 
   function end(event) {

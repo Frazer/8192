@@ -158,6 +158,57 @@ for (const pointer of [true, false]) {
   assert.equal(game.grid.cells[0][1].value, 2048);
   assert.equal(game.grid.availableCells().length, 13);
 
+  // Ten seconds upgrades the corner stack; releasing must preserve it.
+  const restart = nodes[".restart-button"];
+  restart.fire(down, { pointerId: 1, touches: [{}] });
+  h.tick(9999);
+  assert.equal(game.grid.cells[0][0].value, 4096);
+  h.tick(1);
+  assert.equal(game.grid.cells[0][0].value, 8192);
+  assert.equal(game.grid.cells[0][1].value, 4096);
+  assert.equal(game.grid.cells[0][2].value, 2048);
+  assert.equal(game.grid.availableCells().length, 12);
+  twos = 0;
+  game.grid.eachCell((x, y, tile) => {
+    if (tile && tile.value === 2) twos++;
+  });
+  assert.equal(twos, 1);
+  assert.equal(game.score, 0);
+  assert.equal(game.history.length, 0);
+  assert.equal(game.isGameTerminated(), false);
+  const specialBoard = JSON.stringify(game.serializeBoard());
+  (pointer ? h.document : restart).fire(up, { pointerId: 1 });
+  restart.fire("click");
+  h.tick(10000);
+  assert.equal(JSON.stringify(game.serializeBoard()), specialBoard);
+
+  // Release or leave before ten seconds cancels the upgrade.
+  for (const cancel of ["release", "leave", "blur", "cancel"]) {
+    restart.fire(down, { pointerId: 1, touches: [{}] });
+    h.tick(9999);
+    if (cancel === "release") {
+      (pointer ? h.document : restart).fire(up, { pointerId: 1 });
+    } else if (cancel === "blur") {
+      h.window.fire("blur");
+    } else if (cancel === "leave") {
+      restart.fire(pointer ? "pointerleave" : "touchmove");
+    } else {
+      (pointer ? h.document : restart).fire(pointer ? "pointercancel" : "touchcancel");
+    }
+    h.tick(1);
+    assert.equal(game.grid.cells[0][0].value, 4096, cancel + " cancels upgrade");
+    assert.equal(game.grid.availableCells().length, 13);
+  }
+
+  // A short press still starts the ordinary two-tile game.
+  restart.fire(down, { pointerId: 1, touches: [{}] });
+  h.tick(100);
+  (pointer ? h.document : restart).fire(up, { pointerId: 1 });
+  if (pointer) restart.fire("click");
+  assert.equal(game.grid.availableCells().length, 14);
+  h.tick(10000);
+  assert.equal(game.grid.availableCells().length, 14);
+
   game.grid = new h.context.Grid(4);
   game.grid.insertTile(new h.context.Tile({ x: 0, y: 0 }, 4096));
   game.grid.insertTile(new h.context.Tile({ x: 1, y: 0 }, 4096));

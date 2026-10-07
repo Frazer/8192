@@ -77,8 +77,10 @@ GameManager.prototype.setup = function (largeTiles) {
 
     // Add the initial tiles
     if (largeTiles) {
-      this.grid.insertTile(new Tile({ x: 0, y: 0 }, 4096));
-      this.grid.insertTile(new Tile({ x: 0, y: 1 }, 2048));
+      var values = largeTiles === 8192 ? [8192, 4096, 2048] : [4096, 2048];
+      for (var y = 0; y < values.length; y++) {
+        this.grid.insertTile(new Tile({ x: 0, y: y }, values[y]));
+      }
       this.grid.insertTile(new Tile(this.grid.randomAvailableCell(), 2));
     } else {
       this.addStartTiles();
